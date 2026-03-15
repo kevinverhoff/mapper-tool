@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#3C7A4A"       # forest green (buttons, accents)
+backgroundColor = "#F4F8F5"    # soft leaf background
+secondaryBackgroundColor = "#D8E5DB"  # muted sage panels
+textColor = "#2B3A2F"          # dark moss text
+font = "sans serif"
