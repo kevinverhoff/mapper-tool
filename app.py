@@ -5,48 +5,11 @@ from matplotlib.lines import Line2D
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from streamlit_searchbox import st_searchbox
+import re
 
 st.set_page_config(layout="wide", page_title="City Map Builder")
 
 st.title("City Map Builder")
-
-# -----------------------------
-# City Input
-# -----------------------------
-def search_cities(query: str):
-    if not query or len(query) < 2:
-        return []
-    try:
-        response = requests.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": query, "format": "json", "limit": 8, "addressdetails": 1},
-            headers={"User-Agent": "CityMapBuilder/1.0"}
-        )
-        results = response.json()
-        return [r["display_name"] for r in results]
-    except Exception:
-        return []
-
-city = st_searchbox(
-    search_cities,
-    label="Enter city name",
-    placeholder="e.g. Indianapolis, Indiana",
-    default="Greencastle, Indiana",
-    key="city_search"
-)
-
-if not city:
-    city = "Greencastle, Indiana"
-
-# -----------------------------
-# Map Style Selector
-# -----------------------------
-st.markdown("### Map Style")
-
-map_style = st.selectbox(
-    "Choose a style",
-    ["Cyberpunk", "Fantasy", "Steampunk", "Pirate", "Solarpunk"]
-)
 
 # -----------------------------
 # Style Palettes
@@ -116,16 +79,56 @@ def is_dark(hex_color):
     luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
     return luminance < 0.5
 
-palette = styles[map_style]
+US_STATES = {
+    "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+    "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+    "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+    "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+    "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+    "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+    "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+    "Wisconsin","Wyoming","District of Columbia"
+}
 
-text_color = "#ffffff" if is_dark(palette["bg"]) else "#111111"
+# -----------------------------
+# Names
+# -----------------------------
+
+def clean_city_name(display_name: str) -> str:
+    segments = [s.strip() for s in display_name.split(",")]
+
+    # Drop zip codes, "United States", and pure country names
+    filtered = [
+    s for s in segments
+    if not re.match(r"^\d{4,6}$", s)
+    and s not in ("United States", "USA")
+    ]
+
+    first = filtered[0] if filtered else segments[0]
+
+    #us cities and counties
+    try:
+        # Find the state — last segment that matches a known US state
+        state = next(
+            (s for s in reversed(filtered) if s in US_STATES),
+            None
+        )
+
+        # If the first segment already contains "County" and matches the second segment minus "County",
+        # it's a county-only result — just keep first + state
+        if state and state != first:
+            return f"{first}, {state}"
+        last = filtered[-1] if filtered else segments[0]
+        return f"{first}, {last}"
+    except:
+        return display_name
 
 # -----------------------------
 # Cached fetch functions
 # -----------------------------
 @st.cache_data(show_spinner=False)
 def fetch_walk(city):
-    return ox.graph_to_gdfs(ox.graph_from_place(city, network_type="walk"), nodes=False)
+    return ox.graph_to_gdfs(ox.(city, network_type="walk"), nodes=False)
 
 @st.cache_data(show_spinner=False)
 def fetch_bike(city):
@@ -148,14 +151,103 @@ def fetch_rail(city):
     return ox.features_from_place(city, tags={"railway": True})
 
 # -----------------------------
-# Feature Selection
+# Sidebar
 # -----------------------------
-st.markdown("### Select Features to Include")
+with st.sidebar:
 
-options = ["Streets", "Bike Network", "Walking Paths", "Rail Lines", "Buildings (non-residential)", "Residential Structures", "Parks"]
+    # City search
+    st.markdown("### City")
 
-selected = st.multiselect("Map Layers", options=options, default=options)
+    def search_cities(query: str):
+        if not query or len(query) < 2:
+            return []
+        try:
+            response = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": query, "format": "json", "limit": 8, "addressdetails": 1},
+                headers={"User-Agent": "CityMapBuilder/1.0"}
+            )
+            results = response.json()
+            return [r["display_name"] for r in results] 
+        except Exception:
+            return []
 
+    city = st_searchbox(
+        search_cities,
+        label="Enter city name",
+        placeholder="e.g. Indianapolis, Indiana",
+        default="Greencastle, Indiana",
+        key="city_search"
+    )
+
+    if not city:
+        city = "Greencastle, Indiana"
+
+    # Map style
+    st.markdown("### Map Style")
+
+    map_style = st.selectbox(
+        "Choose a style",
+        ["Cyberpunk", "Fantasy", "Steampunk", "Pirate", "Solarpunk"]
+    )
+
+    # Feature selection
+    st.markdown("### Map Layers")
+
+    options = ["Streets", "Bike Network", "Walking Paths", "Rail Lines", "Buildings (non-residential)", "Residential Structures", "Parks"]
+    selected = st.multiselect("Select layers", options=options, default=options)
+
+    # Legend
+    st.markdown("### Legend")
+
+    legend_location = st.selectbox(
+        "Legend Corner",
+        ["lower left", "lower right", "upper left", "upper right"],
+        index=0
+    )
+
+    # Map title
+    st.markdown("### Map Title")
+
+    map_title = st.text_input("Title", value=clean_city_name(city) if city else "")
+
+    # Generate button
+    st.markdown("###")
+
+    st.markdown(
+        """
+        <style>
+        div.stButton > button:first-child {
+            background-color: #3C7A4A; /* Desired fill color */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        div.stButton > button:hover {
+            background-color: #45a049; /* Hover effect */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+)
+
+    generate = st.button("Generate Map", use_container_width=True)
+
+    # Buy me a coffee
+    st.markdown("---")
+    st.text('If you like this sort of thing, you can support it by buying me a coffee. Any and all contributions are much appreciated.')
+    st.markdown(
+        '<a href="https://www.buymeacoffee.com/wZyLoMV" target="_blank" '
+        'style="display: inline-block; padding: 12px 20px; background-color: #ffdd00; '
+        'color: black; text-align: center; border-radius: 5px; text-decoration: none; '
+        'font-weight: bold; width: 100%;">☕ Buy me a coffee</a>',
+        unsafe_allow_html=True
+    )
+
+# -----------------------------
+# Derived state
+# -----------------------------
 include_streets     = "Streets" in selected
 include_bike        = "Bike Network" in selected
 include_walk        = "Walking Paths" in selected
@@ -164,26 +256,13 @@ include_buildings   = "Buildings (non-residential)" in selected
 include_residential = "Residential Structures" in selected
 include_parks       = "Parks" in selected
 
-# -----------------------------
-# Legend Settings
-# -----------------------------
-st.markdown("### Legend Options")
-
-legend_location = st.selectbox(
-    "Legend Corner",
-    ["lower left", "lower right", "upper left", "upper right"],
-    index=0
-)
+palette    = styles[map_style]
+text_color = "#ffffff" if is_dark(palette["bg"]) else "#111111"
 
 # -----------------------------
-# Title Input
+# Generate Map
 # -----------------------------
-map_title = st.text_input("Map Title", value=f"{city}")
-
-# -----------------------------
-# Generate Map Button
-# -----------------------------
-if st.button("Generate Map"):
+if generate:
 
     with st.spinner("Downloading map data...(this may take a minute)"):
 
@@ -232,59 +311,44 @@ if st.button("Generate Map"):
     fig, ax = plt.subplots(figsize=(12, 12), facecolor=palette["bg"])
     ax.set_facecolor(palette["bg"])
 
-    # Parks
     if parks is not None and not parks.empty:
         parks.plot(ax=ax, color=palette["parks"], linewidth=0)
 
-    # Buildings
     if buildings is not None and not buildings.empty:
         buildings.plot(ax=ax, color=palette["buildings"], linewidth=0.1)
 
-    # Residential
     if residential is not None and not residential.empty:
         residential.plot(ax=ax, color=palette["residential"], linewidth=0.1)
 
-    # Streets
     if drive_edges is not None:
         drive_edges.plot(ax=ax, linewidth=0.5, color=palette["streets"], alpha=0.3)
 
-    # Bike
     if bike_edges is not None:
         bike_edges.plot(ax=ax, linewidth=2, color=palette["bike"])
 
-    # Walk
     if walk_edges is not None:
         walk_edges.plot(ax=ax, linewidth=1.2, color=palette["walk"])
 
-    # Rail
     if rail is not None and not rail.empty:
         rail.plot(ax=ax, linewidth=1.4, color=palette["rail"])
 
     ax.set_axis_off()
 
-    # -----------------------------
-    # Legend (dynamic)
-    # -----------------------------
+    # Legend
     legend_elements = []
 
     if include_streets:
         legend_elements.append(Line2D([0], [0], color=palette["streets"], lw=2, label="Streets"))
-
     if include_bike:
         legend_elements.append(Line2D([0], [0], color=palette["bike"], lw=2, label="Bike Network"))
-
     if include_walk:
         legend_elements.append(Line2D([0], [0], color=palette["walk"], lw=2, label="Walking Paths"))
-
     if include_rail:
         legend_elements.append(Line2D([0], [0], color=palette["rail"], lw=2, label="Rail"))
-
     if include_buildings:
         legend_elements.append(Line2D([0], [0], color=palette["buildings"], lw=2, label="Buildings"))
-
     if include_residential:
         legend_elements.append(Line2D([0], [0], color=palette["residential"], lw=2, label="Residential"))
-
     if include_parks:
         legend_elements.append(Line2D([0], [0], color=palette["parks"], lw=2, label="Parks"))
 
