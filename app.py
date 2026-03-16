@@ -158,6 +158,7 @@ with st.sidebar:
     # City search
     st.markdown("### City")
 
+    @st.cache_data(ttl=600)
     def search_cities(query: str):
         if not query or len(query) < 2:
             return []
@@ -165,11 +166,13 @@ with st.sidebar:
             response = requests.get(
                 "https://nominatim.openstreetmap.org/search",
                 params={"q": query, "format": "json", "limit": 8, "addressdetails": 1},
-                headers={"User-Agent": "CityMapBuilder/1.0"}
+                headers={"User-Agent": "CityMapBuilder https://map-builder.streamlit.app"},
+                timeout=10
             )
             results = response.json()
             return [r["display_name"] for r in results] 
-        except Exception:
+        except Exception as e:
+            st.error(e)
             return []
 
     city = st_searchbox(

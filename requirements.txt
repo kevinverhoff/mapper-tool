@@ -1,7 +1,10 @@
 streamlit
 osmnx
 matplotlib
+requests
+streamlit-searchbox
 geopandas
-shapely
 networkx
-streamlit_searchbox
+shapely
+pandas
+numpy
