@@ -6,6 +6,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from streamlit_searchbox import st_searchbox
 import re
+import os
+
+def get_geoapify_key():
+    try:
+        # Try Streamlit secrets first
+        return st.secrets["GEOAPIFY_KEY"]
+    except Exception:
+        # Fallback to environment variable
+        return os.getenv("GEOAPIFY_KEY")
+
+GEOAPIFY_KEY = get_geoapify_key()
+
+if not GEOAPIFY_KEY:
+    st.warning("Geoapify API key not found. Set GEOAPIFY_KEY in Streamlit secrets or environment variables.")
 
 st.set_page_config(layout="wide", page_title="City Map Builder")
 
@@ -171,7 +185,7 @@ with st.sidebar:
                 "text": query,
                 "limit": 8,
                 "type": "city",
-                "apiKey": st.secrets["GEOAPIFY_KEY"]
+                "apiKey": GEOAPIFY_KEY
             }
 
             response = requests.get(url, params=params, timeout=10)
