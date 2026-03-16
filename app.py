@@ -128,7 +128,7 @@ def clean_city_name(display_name: str) -> str:
 # -----------------------------
 @st.cache_data(show_spinner=False)
 def fetch_walk(city):
-    return ox.graph_to_gdfs(ox.(city, network_type="walk"), nodes=False)
+    return ox.graph_to_gdfs(ox.graph_from_place(city, network_type="walk"), nodes=False)
 
 @st.cache_data(show_spinner=False)
 def fetch_bike(city):
