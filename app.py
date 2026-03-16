@@ -172,7 +172,7 @@ with st.sidebar:
             results = response.json()
             return [r["display_name"] for r in results] 
         except Exception as e:
-            st.error(e)
+            st.write(e)
             return []
 
     city = st_searchbox(
