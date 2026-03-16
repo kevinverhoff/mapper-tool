@@ -160,19 +160,40 @@ with st.sidebar:
 
     @st.cache_data(ttl=600)
     def search_cities(query: str):
+
         if not query or len(query) < 2:
             return []
+
         try:
-            response = requests.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"q": query, "format": "json", "limit": 8, "addressdetails": 1},
-                headers={"User-Agent": "CityMapBuilder https://map-builder.streamlit.app"},
-                timeout=10
-            )
-            results = response.json()
-            return [r["display_name"] for r in results] 
+            url = "https://api.geoapify.com/v1/geocode/autocomplete"
+
+            params = {
+                "text": query,
+                "limit": 8,
+                "type": "city",
+                "apiKey": st.secrets["GEOAPIFY_KEY"]
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+
+            data = response.json()
+
+            results = []
+
+            for f in data["features"]:
+                props = f["properties"]
+
+                city = props.get("city") or props.get("town") or props.get("village")
+                state = props.get("state")
+                country = props.get("country")
+
+                if city:
+                    results.append(f"{city}, {state}, {country}")
+
+            return results
+
         except Exception as e:
-            st.text(e)
+            st.error(e)
             return []
 
     city = st_searchbox(
