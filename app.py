@@ -138,9 +138,9 @@ def fetch_bike(city):
 def fetch_drive(city):
     return ox.graph_to_gdfs(ox.graph_from_place(city, network_type="drive"), nodes=False)
 
-@st.cache_data(show_spinner=False)
-def fetch_buildings(city):
-    return ox.features_from_place(city, tags={"building": True})
+# @st.cache_data(show_spinner=False)
+# def fetch_buildings(city):
+#     return ox.features_from_place(city, tags={"building": True})
 
 @st.cache_data(show_spinner=False)
 def fetch_parks(city):
@@ -218,7 +218,13 @@ with st.sidebar:
     # Feature selection
     st.markdown("### Map Layers")
 
-    options = ["Streets", "Bike Network", "Walking Paths", "Rail Lines", "Buildings (non-residential)", "Residential Structures", "Parks"]
+    options = ["Streets", 
+               "Bike Network", 
+               "Walking Paths", 
+               "Rail Lines", 
+            #    "Buildings (non-residential)", 
+            #    "Residential Structures", 
+               "Parks"]
     selected = st.multiselect("Select layers", options=options, default=options)
 
     # Legend
@@ -276,8 +282,8 @@ include_streets     = "Streets" in selected
 include_bike        = "Bike Network" in selected
 include_walk        = "Walking Paths" in selected
 include_rail        = "Rail Lines" in selected
-include_buildings   = "Buildings (non-residential)" in selected
-include_residential = "Residential Structures" in selected
+# include_buildings   = "Buildings (non-residential)" in selected
+# include_residential = "Residential Structures" in selected
 include_parks       = "Parks" in selected
 
 palette    = styles[map_style]
@@ -295,7 +301,7 @@ if generate:
                 "walk":      (fetch_walk,      include_walk),
                 "bike":      (fetch_bike,      include_bike),
                 "drive":     (fetch_drive,     include_streets),
-                "buildings": (fetch_buildings, include_buildings or include_residential),
+                # "buildings": (fetch_buildings, include_buildings or include_residential),
                 "parks":     (fetch_parks,     include_parks),
                 "rail":      (fetch_rail,      include_rail),
             }
@@ -315,12 +321,12 @@ if generate:
             bike_edges  = results.get("bike")
             drive_edges = results.get("drive")
 
-            all_buildings = results.get("buildings")
-            if all_buildings is not None and not all_buildings.empty:
-                buildings   = all_buildings[~all_buildings["building"].isin(["house", "residential"])] if include_buildings else None
-                residential = all_buildings[all_buildings["building"].isin(["house", "residential"])]  if include_residential else None
-            else:
-                buildings = residential = None
+            # all_buildings = results.get("buildings")
+            # if all_buildings is not None and not all_buildings.empty:
+            #     buildings   = all_buildings[~all_buildings["building"].isin(["house", "residential"])] if include_buildings else None
+            #     residential = all_buildings[all_buildings["building"].isin(["house", "residential"])]  if include_residential else None
+            # else:
+            #     buildings = residential = None
 
             parks = results.get("parks")
             rail  = results.get("rail")
@@ -338,11 +344,11 @@ if generate:
     if parks is not None and not parks.empty:
         parks.plot(ax=ax, color=palette["parks"], linewidth=0)
 
-    if buildings is not None and not buildings.empty:
-        buildings.plot(ax=ax, color=palette["buildings"], linewidth=0.1)
+    # if buildings is not None and not buildings.empty:
+    #     buildings.plot(ax=ax, color=palette["buildings"], linewidth=0.1)
 
-    if residential is not None and not residential.empty:
-        residential.plot(ax=ax, color=palette["residential"], linewidth=0.1)
+    # if residential is not None and not residential.empty:
+    #     residential.plot(ax=ax, color=palette["residential"], linewidth=0.1)
 
     if drive_edges is not None:
         drive_edges.plot(ax=ax, linewidth=0.5, color=palette["streets"], alpha=0.3)
@@ -369,10 +375,10 @@ if generate:
         legend_elements.append(Line2D([0], [0], color=palette["walk"], lw=2, label="Walking Paths"))
     if include_rail:
         legend_elements.append(Line2D([0], [0], color=palette["rail"], lw=2, label="Rail"))
-    if include_buildings:
-        legend_elements.append(Line2D([0], [0], color=palette["buildings"], lw=2, label="Buildings"))
-    if include_residential:
-        legend_elements.append(Line2D([0], [0], color=palette["residential"], lw=2, label="Residential"))
+    # if include_buildings:
+    #     legend_elements.append(Line2D([0], [0], color=palette["buildings"], lw=2, label="Buildings"))
+    # if include_residential:
+    #     legend_elements.append(Line2D([0], [0], color=palette["residential"], lw=2, label="Residential"))
     if include_parks:
         legend_elements.append(Line2D([0], [0], color=palette["parks"], lw=2, label="Parks"))
 
