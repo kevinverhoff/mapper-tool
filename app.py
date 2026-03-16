@@ -175,7 +175,7 @@ with st.sidebar:
     city = st_searchbox(
         search_cities,
         label="Enter city name",
-        placeholder="e.g. Indianapolis, Indiana",
+        placeholder="e.g. Greencastle, Indiana",
         default="Greencastle, Indiana",
         key="city_search"
     )
